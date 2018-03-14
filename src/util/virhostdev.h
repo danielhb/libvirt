@@ -188,6 +188,9 @@ virHostdevReAttachDomainDevices(virHostdevManagerPtr mgr,
 bool
 virHostdevIsSCSIDevice(virDomainHostdevDefPtr hostdev)
     ATTRIBUTE_NONNULL(1);
+int
+virHostdevIsVirtualFunction(virDomainHostdevDefPtr hostdev)
+    ATTRIBUTE_NONNULL(1);
 bool
 virHostdevIsMdevDevice(virDomainHostdevDefPtr hostdev)
     ATTRIBUTE_NONNULL(1);
