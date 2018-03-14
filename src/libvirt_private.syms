@@ -287,6 +287,7 @@ virDomainDefHasMemballoon;
 virDomainDefHasMemoryHotplug;
 virDomainDefHasUSB;
 virDomainDefHasVcpusOffline;
+virDomainDefHostdevGetPCIOnlineFunctionMap;
 virDomainDefLifecycleActionAllowed;
 virDomainDefMaybeAddController;
 virDomainDefMaybeAddInput;
