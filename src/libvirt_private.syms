@@ -2066,6 +2066,7 @@ virHostCPUStatsAssign;
 virHostdevFindUSBDevice;
 virHostdevIsMdevDevice;
 virHostdevIsSCSIDevice;
+vurHostdevIsVirtualFunction;
 virHostdevManagerGetDefault;
 virHostdevPCIDevicesBelongToSameSlot;
 virHostdevPCINodeDeviceDetach;
