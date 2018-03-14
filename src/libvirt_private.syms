@@ -2048,6 +2048,7 @@ virHostdevFindUSBDevice;
 virHostdevIsMdevDevice;
 virHostdevIsSCSIDevice;
 virHostdevManagerGetDefault;
+virHostdevPCIDevicesBelongToSameSlot;
 virHostdevPCINodeDeviceDetach;
 virHostdevPCINodeDeviceReAttach;
 virHostdevPCINodeDeviceReset;
