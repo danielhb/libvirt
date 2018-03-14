@@ -2604,6 +2604,34 @@ typedef int (*virDomainDefPostParseBasicCallback)(virDomainDefPtr def,
                                                   virCapsPtr caps,
                                                   void *opaque);
 
+typedef struct _virDomainDeviceDefListData virDomainDeviceDefListData;
+typedef virDomainDeviceDefListData *virDomainDeviceDefListDataPtr;
+struct _virDomainDeviceDefListData {
+    const virDomainDef *def;
+    virCapsPtr caps;
+    virDomainXMLOptionPtr xmlopt;
+};
+
+struct virDomainDeviceDefList {
+    virDomainDeviceDefPtr *devs;
+    size_t count;
+};
+typedef struct virDomainDeviceDefList *virDomainDeviceDefListPtr;
+
+typedef int (*virDomainDeviceDefListIterCallback)(virDomainDeviceDefPtr dev,
+                                                  void *opaque);
+int virDomainDeviceDefListIterate(virDomainDeviceDefListPtr devlist,
+                                  virDomainDeviceDefListIterCallback cb,
+                                  void *data);
+virDomainDeviceDefListPtr
+virDomainDeviceDefListCopy(virDomainDeviceDefListPtr list,
+                           virDomainDeviceDefListDataPtr data,
+                           void *parseOpaque);
+
+void virDomainDeviceDefListFree(virDomainDeviceDefListPtr list);
+void virDomainDeviceDefListFreeShallow(virDomainDeviceDefListPtr list);
+
+
 /* Called once after everything else has been parsed, for adjusting
  * overall domain defaults.
  * @parseOpaque is opaque data passed by virDomainDefParse* caller,
@@ -3010,6 +3038,12 @@ virDomainDeviceDefPtr virDomainDeviceDefParse(const char *xmlStr,
                                               virDomainXMLOptionPtr xmlopt,
                                               void *parseOpaque,
                                               unsigned int flags);
+virDomainDeviceDefListPtr virDomainDeviceDefParseXMLMany(const char *xmlStr,
+                                                         const virDomainDef *def,
+                                                         virCapsPtr caps,
+                                                         virDomainXMLOptionPtr xmlopt,
+                                                         void *parseOpaque,
+                                                         unsigned int flags);
 virDomainDiskDefPtr virDomainDiskDefParse(const char *xmlStr,
                                           const virDomainDef *def,
                                           virDomainXMLOptionPtr xmlopt,
