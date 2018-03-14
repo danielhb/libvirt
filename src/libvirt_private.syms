@@ -2159,6 +2159,7 @@ virHostdevIsMdevDevice;
 virHostdevIsSCSIDevice;
 virHostdevIsVFIODevice;
 virHostdevManagerGetDefault;
+virHostdevPCIDevicesBelongToSameSlot;
 virHostdevPCINodeDeviceDetach;
 virHostdevPCINodeDeviceReAttach;
 virHostdevPCINodeDeviceReset;
