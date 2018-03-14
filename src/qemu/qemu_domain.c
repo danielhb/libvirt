@@ -27,6 +27,8 @@
 #include "qemu_cgroup.h"
 #include "qemu_command.h"
 #include "qemu_dbus.h"
+#include "qemu_hotplug.h"
+#include "qemu_hostdev.h"
 #include "qemu_process.h"
 #include "qemu_capabilities.h"
 #include "qemu_migration.h"
