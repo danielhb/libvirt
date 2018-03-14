@@ -9046,6 +9046,8 @@ static int qemuDomainUpdateDeviceFlags(virDomainPtr dom,
     virDomainObjPtr vm = NULL;
     qemuDomainObjPrivatePtr priv;
     virDomainDefPtr vmdef = NULL;
+    virDomainDeviceDefListPtr devlist;
+    virDomainDeviceDefListData data = {.xmlopt = driver->xmlopt, .caps = NULL};
     virDomainDeviceDefPtr dev = NULL, dev_copy = NULL;
     bool force = (flags & VIR_DOMAIN_DEVICE_MODIFY_FORCE) != 0;
     int ret = -1;
@@ -9063,9 +9065,11 @@ static int qemuDomainUpdateDeviceFlags(virDomainPtr dom,
 
     if (!(caps = virQEMUDriverGetCapabilities(driver, false)))
         goto cleanup;
+    data.caps = caps;
 
     if (!(vm = qemuDomObjFromDomain(dom)))
         goto cleanup;
+    data.def = vm->def;
 
     priv = vm->privateData;
 
@@ -9082,11 +9086,18 @@ static int qemuDomainUpdateDeviceFlags(virDomainPtr dom,
         !(flags & VIR_DOMAIN_AFFECT_LIVE))
         parse_flags |= VIR_DOMAIN_DEF_PARSE_INACTIVE;
 
-    dev = dev_copy = virDomainDeviceDefParse(xml, vm->def, caps,
-                                             driver->xmlopt, priv->qemuCaps,
-                                             parse_flags);
-    if (dev == NULL)
+    devlist = qemuDomainDeviceParseXMLMany(xml, &data, priv->qemuCaps,
+                                           parse_flags);
+    if (!devlist)
         goto endjob;
+
+    if (devlist->count > 1) {
+        virReportError(VIR_ERR_OPERATION_UNSUPPORTED, "%s",
+                       _("Update of multifunction devices is not supported"));
+        goto endjob;
+    }
+
+    dev = dev_copy = devlist->devs[0];
 
     if (flags & VIR_DOMAIN_AFFECT_CONFIG &&
         flags & VIR_DOMAIN_AFFECT_LIVE) {
