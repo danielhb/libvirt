@@ -3130,7 +3130,7 @@ qemuDomainAttachHostDevice(virQEMUDriverPtr driver,
 
         if (qemuDomainAttachHostPCIDevice(driver, vm,
                                           hostdev) < 0) {
-            qemuDomainReleaseDeviceAddress(vm, hostdev->info, NULL);
+            qemuDomainReleaseDeviceAddress(vm, hostdev->info);
             qemuHostdevReAttachPCIDevices(driver, vm->def->name, &hostdev, 1);
             goto error;
         }
