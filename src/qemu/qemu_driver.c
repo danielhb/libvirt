@@ -8325,12 +8325,9 @@ qemuCheckDiskConfigAgainstDomain(const virDomainDef *def,
 
 
 static int
-qemuDomainAttachDeviceConfig(virDomainDefPtr vmdef,
-                             virDomainDeviceDefPtr dev,
-                             virCapsPtr caps,
-                             virQEMUCapsPtr qemuCaps,
-                             unsigned int parse_flags,
-                             virDomainXMLOptionPtr xmlopt)
+qemuDomainAttachDeviceConfigInternal(virDomainDefPtr vmdef,
+                                     virDomainDeviceDefPtr dev)
+
 {
     virDomainDiskDefPtr disk;
     virDomainNetDefPtr net;
@@ -8520,6 +8517,26 @@ qemuDomainAttachDeviceConfig(virDomainDefPtr vmdef,
          return -1;
     }
 
+    return 0;
+}
+
+
+static int
+qemuDomainAttachDeviceConfig(virDomainDefPtr vmdef,
+                             virDomainDeviceDefPtr dev,
+                             virCapsPtr caps,
+                             virQEMUCapsPtr qemuCaps,
+                             unsigned int parse_flags,
+                             virDomainXMLOptionPtr xmlopt)
+{
+    if (virDomainDefCompatibleDevice(vmdef, dev, NULL,
+                                     VIR_DOMAIN_DEVICE_ACTION_ATTACH,
+                                     false) < 0)
+        return -1;
+
+    if (qemuDomainAttachDeviceConfigInternal(vmdef, dev))
+        return -1;
+
     if (virDomainDefPostParse(vmdef, caps, parse_flags, xmlopt, qemuCaps) < 0)
         return -1;
 
@@ -8528,12 +8545,8 @@ qemuDomainAttachDeviceConfig(virDomainDefPtr vmdef,
 
 
 static int
-qemuDomainDetachDeviceConfig(virDomainDefPtr vmdef,
-                             virDomainDeviceDefPtr dev,
-                             virCapsPtr caps,
-                             virQEMUCapsPtr qemuCaps,
-                             unsigned int parse_flags,
-                             virDomainXMLOptionPtr xmlopt)
+qemuDomainDetachDeviceConfigInternal(virDomainDefPtr vmdef,
+                                     virDomainDeviceDefPtr dev)
 {
     virDomainDiskDefPtr disk, det_disk;
     virDomainNetDefPtr net;
@@ -8712,6 +8725,21 @@ qemuDomainDetachDeviceConfig(virDomainDefPtr vmdef,
                        virDomainDeviceTypeToString(dev->type));
         return -1;
     }
+
+    return 0;
+}
+
+
+static int
+qemuDomainDetachDeviceConfig(virDomainDefPtr vmdef,
+                             virDomainDeviceDefPtr dev,
+                             virCapsPtr caps,
+                             virQEMUCapsPtr qemuCaps,
+                             unsigned int parse_flags,
+                             virDomainXMLOptionPtr xmlopt)
+{
+    if (qemuDomainDetachDeviceConfigInternal(vmdef, dev))
+        return -1;
 
     if (virDomainDefPostParse(vmdef, caps, parse_flags, xmlopt, qemuCaps) < 0)
         return -1;
