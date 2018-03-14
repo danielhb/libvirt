@@ -2637,6 +2637,7 @@ virPCIDeviceGetUnbindFromStub;
 virPCIDeviceGetUsedBy;
 virPCIDeviceHasPCIExpressLink;
 virPCIDeviceIsAssignable;
+virPCIDeviceIsMultifunction;
 virPCIDeviceIsPCIExpress;
 virPCIDeviceListAdd;
 virPCIDeviceListAddCopy;
