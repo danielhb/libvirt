@@ -4932,6 +4932,9 @@ qemuDomainDefValidate(const virDomainDef *def,
     if (qemuDomainDefValidateFeatures(def, qemuCaps) < 0)
         goto cleanup;
 
+    if (qemuDomainDefValidatePCIHostdevs(def) < 0)
+        goto cleanup;
+
     if (qemuDomainDefValidateMemory(def, qemuCaps) < 0)
         goto cleanup;
 
