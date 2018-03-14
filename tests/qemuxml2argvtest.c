@@ -1284,6 +1284,7 @@ mymain(void)
     DO_TEST("hostdev-pci-multifunction",
             QEMU_CAPS_KVM,
             QEMU_CAPS_DEVICE_VFIO_PCI,
+            QEMU_CAPS_VIRTIO_PCI_DISABLE_LEGACY,
             X_QEMU_CAPS_HOST_PCI_MULTIDOMAIN,
             X_QEMU_CAPS_PCI_MULTIFUNCTION);
 
@@ -1860,14 +1861,17 @@ mymain(void)
             QEMU_CAPS_VIRTIO_SCSI);
     DO_TEST("pseries-hostdevs-1",
             QEMU_CAPS_DEVICE_SPAPR_PCI_HOST_BRIDGE,
+            X_QEMU_CAPS_PCI_MULTIFUNCTION,
             QEMU_CAPS_VIRTIO_SCSI,
             QEMU_CAPS_DEVICE_VFIO_PCI);
     DO_TEST("pseries-hostdevs-2",
             QEMU_CAPS_DEVICE_SPAPR_PCI_HOST_BRIDGE,
+            X_QEMU_CAPS_PCI_MULTIFUNCTION,
             QEMU_CAPS_VIRTIO_SCSI,
             QEMU_CAPS_DEVICE_VFIO_PCI);
     DO_TEST("pseries-hostdevs-3",
             QEMU_CAPS_DEVICE_SPAPR_PCI_HOST_BRIDGE,
+            X_QEMU_CAPS_PCI_MULTIFUNCTION,
             QEMU_CAPS_VIRTIO_SCSI,
             QEMU_CAPS_DEVICE_VFIO_PCI);
 

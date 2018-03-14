@@ -532,6 +532,16 @@ struct _qemuDomainSaveCookie {
 };
 
 qemuDomainSaveCookiePtr qemuDomainSaveCookieNew(virDomainObjPtr vm);
+typedef struct _qemuDomainPCIHostdevdata qemuDomainPCIHostdevdata;
+typedef qemuDomainPCIHostdevdata *qemuDomainPCIHostdevDataPtr;
+struct _qemuDomainPCIHostdevdata {
+    const virDomainDef *def;
+    virDomainPCIAddressSetPtr addrs;
+    virDomainHostdevDefPtr device;
+};
+
+typedef int (*virDomainPCIHostdevCallback)(qemuDomainPCIHostdevDataPtr data,
+                                           virDomainHostdevDefPtr hostdev);
 
 const char *qemuDomainAsyncJobPhaseToString(qemuDomainAsyncJob job,
                                             int phase);
