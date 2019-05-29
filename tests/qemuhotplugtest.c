@@ -27,6 +27,7 @@
 #include "qemumonitortestutils.h"
 #include "testutils.h"
 #include "testutilsqemu.h"
+#include "virhostdev.h"
 #include "virerror.h"
 #include "virstring.h"
 #include "virthread.h"
@@ -78,6 +79,8 @@ qemuHotplugCreateObjects(virDomainXMLOptionPtr xmlopt,
     virQEMUCapsSet(priv->qemuCaps, QEMU_CAPS_DEVICE_IVSHMEM_PLAIN);
     virQEMUCapsSet(priv->qemuCaps, QEMU_CAPS_DEVICE_IVSHMEM_DOORBELL);
     virQEMUCapsSet(priv->qemuCaps, QEMU_CAPS_SCSI_DISK_WWN);
+    virQEMUCapsSet(priv->qemuCaps, QEMU_CAPS_DEVICE_VFIO_PCI);
+    virQEMUCapsSet(priv->qemuCaps, QEMU_CAPS_DEVICE_SPAPR_PCI_HOST_BRIDGE);
 
     if (qemuTestCapsCacheInsert(driver.qemuCapsCache, priv->qemuCaps) < 0)
         goto cleanup;
@@ -128,6 +131,9 @@ testQemuHotplugAttach(virDomainObjPtr vm,
         break;
     case VIR_DOMAIN_DEVICE_WATCHDOG:
         ret = qemuDomainAttachWatchdog(&driver, vm, dev->data.watchdog);
+        break;
+    case VIR_DOMAIN_DEVICE_HOSTDEV:
+        ret = qemuDomainAttachHostDevice(&driver, vm, dev->data.hostdev);
         break;
     default:
         VIR_TEST_VERBOSE("device type '%s' cannot be attached\n",
@@ -575,6 +581,7 @@ testQemuHotplugCpuIndividual(const void *opaque)
     return ret;
 }
 
+#define FAKEROOTDIRTEMPLATE abs_builddir "/fakerootdir-XXXXXX"
 
 
 static int
@@ -583,6 +590,21 @@ mymain(void)
     int ret = 0;
     struct qemuHotplugTestData data = {0};
     struct testQemuHotplugCpuParams cpudata;
+    char *fakerootdir;
+
+    if (VIR_STRDUP_QUIET(fakerootdir, FAKEROOTDIRTEMPLATE) < 0) {
+        fprintf(stderr, "Out of memory\n");
+        abort();
+    }
+
+    if (!mkdtemp(fakerootdir)) {
+        fprintf(stderr, "Cannot create fakerootdir");
+        abort();
+    }
+
+    setenv("LIBVIRT_FAKE_ROOT_DIR", fakerootdir, 1);
+    unsetenv("LD_PRELOAD");
+
 
 #if !WITH_YAJL
     fputs("libvirt not compiled with JSON support, skipping this test\n", stderr);
@@ -609,6 +631,8 @@ mymain(void)
                                                  0);
     if (!driver.lockManager)
         return EXIT_FAILURE;
+
+    driver.hostdevMgr = virHostdevManagerGetDefault();
 
     /* wait only 100ms for DEVICE_DELETED event */
     qemuDomainRemoveDeviceWaitTime = 100;
@@ -778,6 +802,15 @@ mymain(void)
                    "human-monitor-command", HMP("OK\\r\\n"),
                    "device_add", QMP_OK);
 
+    DO_TEST_ATTACH("base-live", "hostdev-pci", false, true,
+                   "device_add", QMP_OK);
+    DO_TEST_DETACH("base-live", "hostdev-pci", false, false,
+                   "device_del", QMP_DEVICE_DELETED("hostdev0") QMP_OK);
+    DO_TEST_ATTACH("pseries-base-live", "hostdev-pci", false, true,
+                   "device_add", QMP_OK);
+    DO_TEST_DETACH("pseries-base-live", "hostdev-pci", false, false,
+                   "device_del", QMP_DEVICE_DELETED("hostdev0") QMP_OK);
+
     DO_TEST_ATTACH("base-live", "watchdog", false, true,
                    "watchdog-set-action", QMP_OK,
                    "device_add", QMP_OK);
@@ -835,9 +868,15 @@ mymain(void)
     DO_TEST_CPU_INDIVIDUAL("ppc64-modern-individual", "16-22", true, true, true);
     DO_TEST_CPU_INDIVIDUAL("ppc64-modern-individual", "17", true, true, true);
 
+    if (getenv("LIBVIRT_SKIP_CLEANUP") == NULL)
+        virFileDeleteTree(fakerootdir);
+    VIR_FREE(fakerootdir);
+
     qemuTestDriverFree(&driver);
     virObjectUnref(data.vm);
     return (ret == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-VIR_TEST_MAIN(mymain)
+VIR_TEST_MAIN_PRELOAD(mymain,
+                      abs_builddir "/.libs/virpcimock.so",
+                      abs_builddir "/.libs/virprocessmock.so");
