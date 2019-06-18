@@ -5450,25 +5450,40 @@ qemuDomainResetDeviceRemoval(virDomainObjPtr vm)
     priv->unplug.eventSeen = false;
 }
 
-/* Returns:
- *  -1 Unplug of the device failed
+/* This function is the body of qemuDomainWaitForDeviceRemoval with an extra
+ * bool parameter to allow the tuning of the waiting time, according to the
+ * amount of devices being unplugged via unplug.naliases.
  *
- *   0 removal of the device did not finish in qemuDomainRemoveDeviceWaitTime
+ * This is necessary to take into account MultiFunction devices unplugs, where
+ * QEMU will unplug 2+ devices in a single operation sequentially. The former
+ * waiting time considering just one device is not enough for those cases, and
+ * we ended up timing out in an operation we know it's supposed to take longer.
+ *
+ * Returns:
+ *  -1 Unplug of the device(s) failed
+ *
+ *   0 removal of the device(s) did not finish in qemuDomainRemoveDeviceWaitTime
  *
  *   1 when the caller is responsible for finishing the device removal:
  *      - DEVICE_DELETED event arrived before the timeout time
  *      - we failed to reliably wait for the event and thus use fallback behavior
  */
 static int
-qemuDomainWaitForDeviceRemoval(virDomainObjPtr vm)
+qemuDomainWaitForMultipleDeviceRemoval(virDomainObjPtr vm,
+                                       bool isMultiFunctionDevice)
 {
     qemuDomainObjPrivatePtr priv = vm->privateData;
-    unsigned long long until;
+    unsigned long long until, waitTime;
     int rc;
 
     if (virTimeMillisNow(&until) < 0)
         return 1;
-    until += qemuDomainRemoveDeviceWaitTime;
+
+    waitTime = qemuDomainRemoveDeviceWaitTime;
+    if (isMultiFunctionDevice)
+        waitTime *= priv->unplug.naliases;
+
+    until += waitTime;
 
     /* All devices should get released around same time*/
     while (priv->unplug.naliases) {
@@ -5489,6 +5504,17 @@ qemuDomainWaitForDeviceRemoval(virDomainObjPtr vm)
     }
 
     return 1;
+}
+
+/* For a single device, call qemuDomainWaitForMultipleDeviceRemoval with
+ * isMultiFunctionDevice = false.
+ *
+ * Returns: same values as qemuDomainWaitForMultipleDeviceRemoval.
+ */
+static int
+qemuDomainWaitForDeviceRemoval(virDomainObjPtr vm)
+{
+    return qemuDomainWaitForMultipleDeviceRemoval(vm, false);
 }
 
 /* Returns:
@@ -6338,7 +6364,7 @@ qemuDomainDetachMultifunctionDevice(virDomainObjPtr vm,
     if (qemuDomainObjExitMonitor(driver, vm) < 0)
         ret = -1;
 
-    if ((ret = qemuDomainWaitForDeviceRemoval(vm)) == 1) {
+    if ((ret = qemuDomainWaitForMultipleDeviceRemoval(vm, true)) == 1) {
         FOR_EACH_DEV_IN_DEVLIST()
              ret = qemuDomainRemoveHostDevice(driver, vm, detach);
         }
