@@ -1168,6 +1168,34 @@ virHostdevUpdateActivePCIDevices(virHostdevManagerPtr mgr,
     return ret;
 }
 
+bool
+virHostdevIsPCIMultifunctionDevice(virDomainHostdevDefPtr hostdev)
+{
+    VIR_AUTOPTR(virPCIDevice) pciDev = NULL;
+    virDomainHostdevSubsysPCIPtr pcisrc = &hostdev->source.subsys.u.pci;
+    bool ret = false;
+
+    if (hostdev->mode != VIR_DOMAIN_HOSTDEV_MODE_SUBSYS ||
+        hostdev->source.subsys.type != VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_PCI)
+        goto out;
+
+    /* Libvirt should be able to perform all the operations in
+     * virPCIDeviceNew() even if it's running unprivileged, so if this
+     * fails, the device apparently doesn't currently exist on the host.
+     * Since we can't speculate, assume this device is not multifunction.
+     */
+    pciDev = virPCIDeviceNew(pcisrc->addr.domain, pcisrc->addr.bus,
+                             pcisrc->addr.slot, pcisrc->addr.function);
+
+    if (!pciDev)
+        goto out;
+
+    ret = virPCIDeviceIsMultifunction(pciDev);
+
+ out:
+    return ret;
+}
+
 int
 virHostdevUpdateActiveUSBDevices(virHostdevManagerPtr mgr,
                                  virDomainHostdevDefPtr *hostdevs,

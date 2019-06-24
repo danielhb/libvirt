@@ -1511,32 +1511,10 @@ qemuDomainDefDeviceFindSlotAggregateIdx(virDomainDefPtr def,
                                         virDomainDeviceDefPtr dev)
 {
     int aggregateSlotIdx = 0;
-    virPCIDevicePtr pciDev;
     virDomainHostdevDefPtr hostdev = dev->data.hostdev;
     qemuDomainPCIHostdevdata temp = {def, NULL, hostdev};
-    virPCIDeviceAddressPtr hostAddr = &hostdev->source.subsys.u.pci.addr;
 
-    /* Only PCI host devices are subject to isolation */
-    if (hostdev->mode != VIR_DOMAIN_HOSTDEV_MODE_SUBSYS ||
-        hostdev->source.subsys.type != VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_PCI) {
-        return 0;
-    }
-
-    if (!(pciDev = virPCIDeviceNew(hostAddr->domain,
-                                   hostAddr->bus,
-                                   hostAddr->slot,
-                                   hostAddr->function))) {
-        /* libvirt should be able to perform all the
-         * operations in virPCIDeviceNew() even if it's
-         * running unprivileged, so if this fails, the device
-         * apparently doesn't currently exist on the host.
-         * Since majority of host are non-multifunction,
-         * assume this one is too.
-         */
-        return 0;
-    }
-
-    if (!virPCIDeviceIsMultifunction(pciDev))
+    if (!virHostdevIsPCIMultifunctionDevice(hostdev))
         return 0;
 
     aggregateSlotIdx = qemuDomainPCIHostDevicesIter(&temp, qemuDomainDefHostdevGetSlotAggregateIdx);
