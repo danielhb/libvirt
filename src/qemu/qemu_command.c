@@ -5465,20 +5465,23 @@ qemuBuildHostdevCommandLine(virCommandPtr cmd,
         virDomainHostdevSubsysPtr subsys = &hostdev->source.subsys;
         VIR_AUTOFREE(char *) devstr = NULL;
 
+        if (hostdev->mode != VIR_DOMAIN_HOSTDEV_MODE_SUBSYS)
+            continue;
+
         /* USB */
-        if (hostdev->mode == VIR_DOMAIN_HOSTDEV_MODE_SUBSYS &&
-            subsys->type == VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_USB) {
+        if (subsys->type == VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_USB) {
 
             virCommandAddArg(cmd, "-device");
             if (!(devstr =
                   qemuBuildUSBHostdevDevStr(def, hostdev, qemuCaps)))
                 return -1;
             virCommandAddArg(cmd, devstr);
+
+            continue;
         }
 
         /* PCI */
-        if (hostdev->mode == VIR_DOMAIN_HOSTDEV_MODE_SUBSYS &&
-            subsys->type == VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_PCI) {
+        if (subsys->type == VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_PCI) {
             int backend = subsys->u.pci.backend;
 
             if (backend == VIR_DOMAIN_HOSTDEV_PCI_BACKEND_VFIO) {
@@ -5508,6 +5511,8 @@ qemuBuildHostdevCommandLine(virCommandPtr cmd,
             if (!devstr)
                 return -1;
             virCommandAddArg(cmd, devstr);
+
+            continue;
         }
 
         /* SCSI */
@@ -5537,11 +5542,12 @@ qemuBuildHostdevCommandLine(virCommandPtr cmd,
             if (!(devstr = qemuBuildSCSIHostdevDevStr(def, hostdev)))
                 return -1;
             virCommandAddArg(cmd, devstr);
+
+            continue;
         }
 
         /* SCSI_host */
-        if (hostdev->mode == VIR_DOMAIN_HOSTDEV_MODE_SUBSYS &&
-            subsys->type == VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_HOST) {
+        if (subsys->type == VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_HOST) {
             if (hostdev->source.subsys.u.scsi_host.protocol ==
                 VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_HOST_PROTOCOL_TYPE_VHOST) {
                 VIR_AUTOFREE(char *) vhostfdName = NULL;
@@ -5567,6 +5573,8 @@ qemuBuildHostdevCommandLine(virCommandPtr cmd,
 
                 virCommandAddArg(cmd, devstr);
             }
+
+            continue;
         }
 
         /* MDEV */
