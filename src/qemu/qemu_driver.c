@@ -255,7 +255,7 @@ qemuSecurityChownCallback(const virStorageSource *src,
     int save_errno = 0;
     int ret = -1;
     int rv;
-    VIR_AUTOUNREF(virStorageSourcePtr) cpy = NULL;
+    g_autoptr(virStorageSource) cpy = NULL;
 
     rv = virStorageFileSupportsSecurityDriver(src);
     if (rv <= 0)
@@ -15424,9 +15424,9 @@ qemuDomainSnapshotDiskCleanup(qemuDomainSnapshotDiskDataPtr data,
             if (data[i].prepared)
                 qemuDomainStorageSourceAccessRevoke(driver, vm, data[i].src);
 
-            virObjectUnref(data[i].src);
+            g_object_unref(data[i].src);
         }
-        virObjectUnref(data[i].persistsrc);
+        g_object_unref(data[i].persistsrc);
         VIR_FREE(data[i].relPath);
         qemuBlockStorageSourceChainDataFree(data[i].crdata);
     }
@@ -15450,7 +15450,7 @@ qemuDomainSnapshotDiskPrepareOne(virQEMUDriverPtr driver,
     qemuDomainObjPrivatePtr priv = vm->privateData;
     char *backingStoreStr;
     virDomainDiskDefPtr persistdisk;
-    VIR_AUTOUNREF(virStorageSourcePtr) terminator = NULL;
+    g_autoptr(virStorageSource) terminator = NULL;
     bool supportsCreate;
     bool supportsBacking;
     int rc;
@@ -18212,7 +18212,7 @@ qemuDomainBlockCopyCommon(virDomainObjPtr vm,
     bool mirror_shallow = !!(flags & VIR_DOMAIN_BLOCK_COPY_SHALLOW);
     bool existing = mirror_reuse;
     qemuBlockJobDataPtr job = NULL;
-    VIR_AUTOUNREF(virStorageSourcePtr) mirror = mirrorsrc;
+    g_autoptr(virStorageSource) mirror = mirrorsrc;
     bool blockdev = virQEMUCapsGet(priv->qemuCaps, QEMU_CAPS_BLOCKDEV);
     bool mirror_initialized = false;
     VIR_AUTOPTR(qemuBlockStorageSourceChainData) data = NULL;
@@ -18485,7 +18485,7 @@ qemuDomainBlockRebase(virDomainPtr dom, const char *path, const char *base,
     virDomainObjPtr vm;
     int ret = -1;
     unsigned long long speed = bandwidth;
-    VIR_AUTOUNREF(virStorageSourcePtr) dest = NULL;
+    g_autoptr(virStorageSource) dest = NULL;
 
     virCheckFlags(VIR_DOMAIN_BLOCK_REBASE_SHALLOW |
                   VIR_DOMAIN_BLOCK_REBASE_REUSE_EXT |
@@ -18690,7 +18690,7 @@ qemuDomainBlockCommit(virDomainPtr dom,
     VIR_AUTOFREE(char *) backingPath = NULL;
     unsigned long long speed = bandwidth;
     qemuBlockJobDataPtr job = NULL;
-    VIR_AUTOUNREF(virStorageSourcePtr) mirror = NULL;
+    g_autoptr(virStorageSource) mirror = NULL;
     const char *nodetop = NULL;
     const char *nodebase = NULL;
     bool persistjob = false;
