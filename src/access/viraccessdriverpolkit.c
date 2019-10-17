@@ -59,9 +59,9 @@ virAccessDriverPolkitFormatAction(const char *typename,
     char *actionid = NULL;
     size_t i;
 
-    if (virAsprintf(&actionid, "%s.%s.%s",
-                    VIR_ACCESS_DRIVER_POLKIT_ACTION_PREFIX,
-                    typename, permname) < 0)
+    if (!(actionid = g_strdup_printf("%s.%s.%s",
+                                     VIR_ACCESS_DRIVER_POLKIT_ACTION_PREFIX,
+                                     typename, permname)))
         return NULL;
 
     for (i = 0; actionid[i]; i++)
