@@ -291,7 +291,7 @@ virNetworkDefCopy(virNetworkDefPtr def,
                   virNetworkXMLOptionPtr xmlopt,
                   unsigned int flags)
 {
-    char *xml = NULL;
+    g_autofree char *xml = NULL;
     virNetworkDefPtr newDef = NULL;
 
     if (!def) {
@@ -305,7 +305,6 @@ virNetworkDefCopy(virNetworkDefPtr def,
         goto cleanup;
     newDef = virNetworkDefParseString(xml, xmlopt);
  cleanup:
-    VIR_FREE(xml);
     return newDef;
 }
 
@@ -399,7 +398,8 @@ virSocketAddrRangeParseXML(const char *networkName,
                            xmlNodePtr node,
                            virSocketAddrRangePtr range)
 {
-    char *start = NULL, *end = NULL;
+    g_autofree char *start = NULL;
+    g_autofree char *end = NULL;
     int ret = -1;
 
     if (!(start = virXMLPropString(node, "start"))) {
@@ -428,8 +428,6 @@ virSocketAddrRangeParseXML(const char *networkName,
     ret = 0;
 
  cleanup:
-    VIR_FREE(start);
-    VIR_FREE(end);
     return ret;
 }
 
@@ -441,7 +439,10 @@ virNetworkDHCPHostDefParseXML(const char *networkName,
                               virNetworkDHCPHostDefPtr host,
                               bool partialOkay)
 {
-    char *mac = NULL, *name = NULL, *ip = NULL, *id = NULL;
+    g_autofree char *mac = NULL;
+    g_autofree char *name = NULL;
+    g_autofree char *ip = NULL;
+    g_autofree char *id = NULL;
     virMacAddr addr;
     virSocketAddr inaddr;
     int ret = -1;
@@ -547,10 +548,6 @@ virNetworkDHCPHostDefParseXML(const char *networkName,
     ret = 0;
 
  cleanup:
-    VIR_FREE(mac);
-    VIR_FREE(id);
-    VIR_FREE(name);
-    VIR_FREE(ip);
     return ret;
 }
 
@@ -2368,8 +2365,8 @@ static int
 virNetworkForwardNatDefFormat(virBufferPtr buf,
                               const virNetworkForwardDef *fwd)
 {
-    char *addrStart = NULL;
-    char *addrEnd = NULL;
+    g_autofree char *addrStart = NULL;
+    g_autofree char *addrEnd = NULL;
     int ret = -1;
 
     if (VIR_SOCKET_ADDR_VALID(&fwd->addr.start)) {
@@ -2409,8 +2406,6 @@ virNetworkForwardNatDefFormat(virBufferPtr buf,
     ret = 0;
 
  cleanup:
-    VIR_FREE(addrStart);
-    VIR_FREE(addrEnd);
     return ret;
 }
 
@@ -2705,7 +2700,7 @@ virNetworkSaveXML(const char *configDir,
                   const char *xml)
 {
     char uuidstr[VIR_UUID_STRING_BUFLEN];
-    char *configFile = NULL;
+    g_autofree char *configFile = NULL;
     int ret = -1;
 
     if ((configFile = virNetworkConfigFile(configDir, def->name)) == NULL)
@@ -2724,7 +2719,6 @@ virNetworkSaveXML(const char *configDir,
                          "net-edit", xml);
 
  cleanup:
-    VIR_FREE(configFile);
     return ret;
 }
 
@@ -2735,7 +2729,7 @@ virNetworkSaveConfig(const char *configDir,
                      virNetworkXMLOptionPtr xmlopt)
 {
     int ret = -1;
-    char *xml;
+    g_autofree char *xml = NULL;
 
     if (!(xml = virNetworkDefFormat(def, xmlopt, VIR_NETWORK_XML_INACTIVE)))
         goto cleanup;
@@ -2745,7 +2739,6 @@ virNetworkSaveConfig(const char *configDir,
 
     ret = 0;
  cleanup:
-    VIR_FREE(xml);
     return ret;
 }
 
