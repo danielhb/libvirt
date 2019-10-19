@@ -292,7 +292,6 @@ virNetworkDefCopy(virNetworkDefPtr def,
                   unsigned int flags)
 {
     g_autofree char *xml = NULL;
-    virNetworkDefPtr newDef = NULL;
 
     if (!def) {
         virReportError(VIR_ERR_INTERNAL_ERROR,
@@ -302,10 +301,9 @@ virNetworkDefCopy(virNetworkDefPtr def,
 
     /* deep copy with a format/parse cycle */
     if (!(xml = virNetworkDefFormat(def, xmlopt, flags)))
-        goto cleanup;
-    newDef = virNetworkDefParseString(xml, xmlopt);
- cleanup:
-    return newDef;
+        return NULL;
+
+    return virNetworkDefParseString(xml, xmlopt);
 }
 
 
@@ -400,35 +398,31 @@ virSocketAddrRangeParseXML(const char *networkName,
 {
     g_autofree char *start = NULL;
     g_autofree char *end = NULL;
-    int ret = -1;
 
     if (!(start = virXMLPropString(node, "start"))) {
         virReportError(VIR_ERR_XML_ERROR,
                        _("Missing 'start' attribute in dhcp range for network '%s'"),
                        networkName);
-        goto cleanup;
+        return -1;
     }
     if (virSocketAddrParse(&range->start, start, AF_UNSPEC) < 0)
-        goto cleanup;
+        return -1;
 
     if (!(end = virXMLPropString(node, "end"))) {
         virReportError(VIR_ERR_XML_ERROR,
                        _("Missing 'end' attribute in dhcp range for network '%s'"),
                        networkName);
-        goto cleanup;
+        return -1;
     }
     if (virSocketAddrParse(&range->end, end, AF_UNSPEC) < 0)
-        goto cleanup;
+        return -1;
 
     /* do a sanity check of the range */
     if (virSocketAddrGetRange(&range->start, &range->end, &ipdef->address,
                               virNetworkIPDefPrefix(ipdef)) < 0)
-        goto cleanup;
+        return -1;
 
-    ret = 0;
-
- cleanup:
-    return ret;
+    return 0;
 }
 
 
@@ -445,7 +439,6 @@ virNetworkDHCPHostDefParseXML(const char *networkName,
     g_autofree char *id = NULL;
     virMacAddr addr;
     virSocketAddr inaddr;
-    int ret = -1;
 
     mac = virXMLPropString(node, "mac");
     if (mac != NULL) {
@@ -454,20 +447,20 @@ virNetworkDHCPHostDefParseXML(const char *networkName,
                            _("Invalid to specify MAC address '%s' "
                              "in network '%s' IPv6 static host definition"),
                            mac, networkName);
-            goto cleanup;
+            return -1;
         }
         if (virMacAddrParse(mac, &addr) < 0) {
             virReportError(VIR_ERR_XML_ERROR,
                            _("Cannot parse MAC address '%s' in network '%s'"),
                            mac, networkName);
-            goto cleanup;
+            return -1;
         }
         if (virMacAddrIsMulticast(&addr)) {
             virReportError(VIR_ERR_XML_ERROR,
                            _("expected unicast mac address, found "
                              "multicast '%s' in network '%s'"),
                            (const char *)mac, networkName);
-            goto cleanup;
+            return -1;
         }
     }
 
@@ -478,7 +471,7 @@ virNetworkDHCPHostDefParseXML(const char *networkName,
             virReportError(VIR_ERR_XML_ERROR,
                            _("Invalid character '%c' in id '%s' of network '%s'"),
                            *cp, id, networkName);
-            goto cleanup;
+            return -1;
         }
     }
 
@@ -487,7 +480,7 @@ virNetworkDHCPHostDefParseXML(const char *networkName,
         virReportError(VIR_ERR_XML_ERROR,
                        _("Cannot use host name '%s' in network '%s'"),
                        name, networkName);
-        goto cleanup;
+        return -1;
     }
 
     ip = virXMLPropString(node, "ip");
@@ -496,7 +489,7 @@ virNetworkDHCPHostDefParseXML(const char *networkName,
                        _("Invalid IP address in static host definition "
                          "for network '%s'"),
                        networkName);
-        goto cleanup;
+        return -1;
     }
 
     if (partialOkay) {
@@ -507,7 +500,7 @@ virNetworkDHCPHostDefParseXML(const char *networkName,
                              "must be specified for static host definition "
                              "in network '%s' "),
                            networkName);
-            goto cleanup;
+            return -1;
         }
     } else {
         /* normal usage - you need at least name (IPv6) or one of MAC
@@ -519,21 +512,21 @@ virNetworkDHCPHostDefParseXML(const char *networkName,
                            _("Static host definition in IPv6 network '%s' "
                              "must have id or name attribute"),
                            networkName);
-                goto cleanup;
+                return -1;
             }
         } else if (!(mac || name)) {
             virReportError(VIR_ERR_XML_ERROR,
                            _("Static host definition in IPv4 network '%s' "
                              "must have mac or name attribute"),
                            networkName);
-            goto cleanup;
+            return -1;
         }
         if (!ip) {
             virReportError(VIR_ERR_XML_ERROR,
                            _("Missing IP address in static host definition "
                              "for network '%s'"),
                            networkName);
-            goto cleanup;
+            return -1;
         }
     }
 
@@ -545,10 +538,8 @@ virNetworkDHCPHostDefParseXML(const char *networkName,
     name = NULL;
     if (ip)
         host->ip = inaddr;
-    ret = 0;
 
- cleanup:
-    return ret;
+    return 0;
 }
 
 
@@ -2367,18 +2358,17 @@ virNetworkForwardNatDefFormat(virBufferPtr buf,
 {
     g_autofree char *addrStart = NULL;
     g_autofree char *addrEnd = NULL;
-    int ret = -1;
 
     if (VIR_SOCKET_ADDR_VALID(&fwd->addr.start)) {
         addrStart = virSocketAddrFormat(&fwd->addr.start);
         if (!addrStart)
-            goto cleanup;
+            return -1;
     }
 
     if (VIR_SOCKET_ADDR_VALID(&fwd->addr.end)) {
         addrEnd = virSocketAddrFormat(&fwd->addr.end);
         if (!addrEnd)
-            goto cleanup;
+            return -1;
     }
 
     if (!addrEnd && !addrStart && !fwd->port.start && !fwd->port.end)
@@ -2403,10 +2393,7 @@ virNetworkForwardNatDefFormat(virBufferPtr buf,
 
     virBufferAdjustIndent(buf, -2);
     virBufferAddLit(buf, "</nat>\n");
-    ret = 0;
-
- cleanup:
-    return ret;
+    return 0;
 }
 
 
@@ -2701,25 +2688,21 @@ virNetworkSaveXML(const char *configDir,
 {
     char uuidstr[VIR_UUID_STRING_BUFLEN];
     g_autofree char *configFile = NULL;
-    int ret = -1;
 
     if ((configFile = virNetworkConfigFile(configDir, def->name)) == NULL)
-        goto cleanup;
+        return -1;
 
     if (virFileMakePath(configDir) < 0) {
         virReportSystemError(errno,
                              _("cannot create config directory '%s'"),
                              configDir);
-        goto cleanup;
+        return -1;
     }
 
     virUUIDFormat(def->uuid, uuidstr);
-    ret = virXMLSaveFile(configFile,
-                         virXMLPickShellSafeComment(def->name, uuidstr),
-                         "net-edit", xml);
-
- cleanup:
-    return ret;
+    return  virXMLSaveFile(configFile,
+                           virXMLPickShellSafeComment(def->name, uuidstr),
+                           "net-edit", xml);
 }
 
 
@@ -2728,18 +2711,15 @@ virNetworkSaveConfig(const char *configDir,
                      virNetworkDefPtr def,
                      virNetworkXMLOptionPtr xmlopt)
 {
-    int ret = -1;
     g_autofree char *xml = NULL;
 
     if (!(xml = virNetworkDefFormat(def, xmlopt, VIR_NETWORK_XML_INACTIVE)))
-        goto cleanup;
+        return -1;
 
     if (virNetworkSaveXML(configDir, def, xml))
-        goto cleanup;
+        return -1;
 
-    ret = 0;
- cleanup:
-    return ret;
+    return 0;
 }
 
 
@@ -3055,18 +3035,17 @@ virNetworkDefUpdateIPDHCPRange(virNetworkDefPtr def,
                                unsigned int fflags G_GNUC_UNUSED)
 {
     size_t i;
-    int ret = -1;
     virNetworkIPDefPtr ipdef = virNetworkIPDefByIndex(def, parentIndex);
     virSocketAddrRange range;
 
     memset(&range, 0, sizeof(range));
 
     if (virNetworkDefUpdateCheckElementName(def, ctxt->node, "range") < 0)
-        goto cleanup;
+        return -1;
 
     /* ipdef is the ip element that needs its range array updated */
     if (!ipdef)
-        goto cleanup;
+        return -1;
 
     /* parse the xml into a virSocketAddrRange */
     if (command == VIR_NETWORK_UPDATE_COMMAND_MODIFY) {
@@ -3074,18 +3053,18 @@ virNetworkDefUpdateIPDHCPRange(virNetworkDefPtr def,
         virReportError(VIR_ERR_OPERATION_UNSUPPORTED, "%s",
                        _("dhcp ranges cannot be modified, "
                          "only added or deleted"));
-        goto cleanup;
+        return -1;
     }
 
     if (virSocketAddrRangeParseXML(def->name, ipdef, ctxt->node, &range) < 0)
-        goto cleanup;
+        return -1;
 
     if (VIR_SOCKET_ADDR_FAMILY(&ipdef->address)
         != VIR_SOCKET_ADDR_FAMILY(&range.start)) {
         virReportError(VIR_ERR_OPERATION_INVALID, "%s",
                        _("the address family of a dhcp range must match "
                          "the address family of the dhcp element's parent"));
-        goto cleanup;
+        return -1;
     }
 
     /* check if an entry with same name/address/ip already exists */
@@ -3100,7 +3079,7 @@ virNetworkDefUpdateIPDHCPRange(virNetworkDefPtr def,
         (command == VIR_NETWORK_UPDATE_COMMAND_ADD_LAST)) {
 
         if (virNetworkDefUpdateCheckMultiDHCP(def, ipdef) < 0)
-            goto cleanup;
+            return -1;
 
         if (i < ipdef->nranges) {
             char *startip = virSocketAddrFormat(&range.start);
@@ -3115,7 +3094,7 @@ virNetworkDefUpdateIPDHCPRange(virNetworkDefPtr def,
                            endip ? endip : "unknown");
             VIR_FREE(startip);
             VIR_FREE(endip);
-            goto cleanup;
+            return -1;
         }
 
         /* add to beginning/end of list */
@@ -3123,14 +3102,14 @@ virNetworkDefUpdateIPDHCPRange(virNetworkDefPtr def,
                                command == VIR_NETWORK_UPDATE_COMMAND_ADD_FIRST
                                ? 0 : ipdef->nranges,
                                ipdef->nranges, range) < 0)
-            goto cleanup;
+            return -1;
     } else if (command == VIR_NETWORK_UPDATE_COMMAND_DELETE) {
 
         if (i == ipdef->nranges) {
             virReportError(VIR_ERR_OPERATION_INVALID,
                            _("couldn't locate a matching dhcp range entry "
                              "in network '%s'"), def->name);
-            goto cleanup;
+            return -1;
         }
 
         /* remove it */
@@ -3142,9 +3121,7 @@ virNetworkDefUpdateIPDHCPRange(virNetworkDefPtr def,
         goto cleanup;
     }
 
-    ret = 0;
- cleanup:
-    return ret;
+    return 0;
 }
 
 
