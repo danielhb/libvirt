@@ -287,7 +287,6 @@ virNetworkObjMacMgrAdd(virNetworkObjPtr obj,
 {
     char macStr[VIR_MAC_STRING_BUFLEN];
     g_autofree char *file = NULL;
-    int ret = -1;
 
     if (!obj->macmap)
         return 0;
@@ -295,17 +294,15 @@ virNetworkObjMacMgrAdd(virNetworkObjPtr obj,
     virMacAddrFormat(mac, macStr);
 
     if (!(file = virMacMapFileName(dnsmasqStateDir, obj->def->bridge)))
-        goto cleanup;
+        return -1;
 
     if (virMacMapAdd(obj->macmap, domain, macStr) < 0)
-        goto cleanup;
+        return -1;
 
     if (virMacMapWriteFile(obj->macmap, file) < 0)
-        goto cleanup;
+        return -1;
 
-    ret = 0;
- cleanup:
-    return ret;
+    return 0;
 }
 
 
@@ -317,7 +314,6 @@ virNetworkObjMacMgrDel(virNetworkObjPtr obj,
 {
     char macStr[VIR_MAC_STRING_BUFLEN];
     g_autofree char *file = NULL;
-    int ret = -1;
 
     if (!obj->macmap)
         return 0;
@@ -325,17 +321,15 @@ virNetworkObjMacMgrDel(virNetworkObjPtr obj,
     virMacAddrFormat(mac, macStr);
 
     if (!(file = virMacMapFileName(dnsmasqStateDir, obj->def->bridge)))
-        goto cleanup;
+        return -1;
 
     if (virMacMapRemove(obj->macmap, domain, macStr) < 0)
-        goto cleanup;
+        return -1;
 
     if (virMacMapWriteFile(obj->macmap, file) < 0)
-        goto cleanup;
+        return -1;
 
-    ret = 0;
- cleanup:
-    return ret;
+    return 0;
 }
 
 
@@ -764,14 +758,13 @@ virNetworkObjConfigChangeSetup(virNetworkObjPtr obj,
                                unsigned int flags)
 {
     bool isActive;
-    int ret = -1;
 
     isActive = virNetworkObjIsActive(obj);
 
     if (!isActive && (flags & VIR_NETWORK_UPDATE_AFFECT_LIVE)) {
         virReportError(VIR_ERR_OPERATION_INVALID, "%s",
                        _("network is not running"));
-        goto cleanup;
+        return -1;
     }
 
     if (flags & VIR_NETWORK_UPDATE_AFFECT_CONFIG) {
@@ -779,18 +772,16 @@ virNetworkObjConfigChangeSetup(virNetworkObjPtr obj,
             virReportError(VIR_ERR_OPERATION_INVALID, "%s",
                            _("cannot change persistent config of a "
                              "transient network"));
-            goto cleanup;
+            return -1;
         }
         /* this should already have been done by the driver, but do it
          * anyway just in case.
          */
         if (isActive && (virNetworkObjSetDefTransient(obj, false, xmlopt) < 0))
-            goto cleanup;
+            return -1;
     }
 
-    ret = 0;
- cleanup:
-    return ret;
+    return 0;
 }
 
 
@@ -857,19 +848,16 @@ virNetworkObjSaveStatus(const char *statusDir,
                         virNetworkObjPtr obj,
                         virNetworkXMLOptionPtr xmlopt)
 {
-    int ret = -1;
     int flags = 0;
     g_autofree char *xml = NULL;
 
     if (!(xml = virNetworkObjFormat(obj, xmlopt, flags)))
-        goto cleanup;
+        return -1;
 
     if (virNetworkSaveXML(statusDir, obj->def, xml))
-        goto cleanup;
+        return -1;
 
-    ret = 0;
- cleanup:
-    return ret;
+    return 0;
 }
 
 
@@ -1676,10 +1664,9 @@ virNetworkObjLookupPort(virNetworkObjPtr net,
         virReportError(VIR_ERR_NO_NETWORK_PORT,
                        _("Network port with UUID %s does not exist"),
                        uuidstr);
-        goto cleanup;
+        return NULL;
     }
 
- cleanup:
     return ret;
 }
 
@@ -1782,21 +1769,20 @@ virNetworkObjPortListExportCallback(void *payload,
 
     if (data->filter &&
         !data->filter(data->net->conn, data->def, def))
-        goto cleanup;
+        return 0;
 
     if (!data->ports) {
         data->nports++;
-        goto cleanup;
+        return 0;
     }
 
     if (!(port = virGetNetworkPort(data->net, def->uuid))) {
         data->error = true;
-        goto cleanup;
+        return 0;
     }
 
     data->ports[data->nports++] = port;
 
- cleanup:
     return 0;
 }
 
