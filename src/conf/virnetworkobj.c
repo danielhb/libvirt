@@ -286,7 +286,7 @@ virNetworkObjMacMgrAdd(virNetworkObjPtr obj,
                        const virMacAddr *mac)
 {
     char macStr[VIR_MAC_STRING_BUFLEN];
-    char *file = NULL;
+    g_autofree char *file = NULL;
     int ret = -1;
 
     if (!obj->macmap)
@@ -305,7 +305,6 @@ virNetworkObjMacMgrAdd(virNetworkObjPtr obj,
 
     ret = 0;
  cleanup:
-    VIR_FREE(file);
     return ret;
 }
 
@@ -317,7 +316,7 @@ virNetworkObjMacMgrDel(virNetworkObjPtr obj,
                        const virMacAddr *mac)
 {
     char macStr[VIR_MAC_STRING_BUFLEN];
-    char *file = NULL;
+    g_autofree char *file = NULL;
     int ret = -1;
 
     if (!obj->macmap)
@@ -336,7 +335,6 @@ virNetworkObjMacMgrDel(virNetworkObjPtr obj,
 
     ret = 0;
  cleanup:
-    VIR_FREE(file);
     return ret;
 }
 
@@ -861,7 +859,7 @@ virNetworkObjSaveStatus(const char *statusDir,
 {
     int ret = -1;
     int flags = 0;
-    char *xml;
+    g_autofree char *xml = NULL;
 
     if (!(xml = virNetworkObjFormat(obj, xmlopt, flags)))
         goto cleanup;
@@ -871,7 +869,6 @@ virNetworkObjSaveStatus(const char *statusDir,
 
     ret = 0;
  cleanup:
-    VIR_FREE(xml);
     return ret;
 }
 
