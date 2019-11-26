@@ -5205,6 +5205,82 @@ virDomainVsockDefPostParse(virDomainVsockDefPtr vsock)
 
 
 static int
+virDomainInputDefPostParse(virDomainInputDefPtr input,
+                           const virDomainDef *def)
+{
+    const char *type = virDomainInputTypeToString(input->type);
+    const char *bus = virDomainInputBusTypeToString(input->bus);
+
+    if (def->os.type == VIR_DOMAIN_OSTYPE_HVM) {
+        if (input->bus == VIR_DOMAIN_INPUT_BUS_PS2 &&
+            input->type != VIR_DOMAIN_INPUT_TYPE_MOUSE &&
+            input->type != VIR_DOMAIN_INPUT_TYPE_KBD) {
+            virReportError(VIR_ERR_INTERNAL_ERROR,
+                           _("ps2 bus does not support %s input device"),
+                           type);
+            return -1;
+        }
+        if (input->bus == VIR_DOMAIN_INPUT_BUS_XEN) {
+            virReportError(VIR_ERR_INTERNAL_ERROR,
+                           _("unsupported input bus %s"),
+                           bus);
+            return -1;
+        }
+    } else if (def->os.type == VIR_DOMAIN_OSTYPE_XEN ||
+               def->os.type == VIR_DOMAIN_OSTYPE_XENPVH) {
+        if (input->bus != VIR_DOMAIN_INPUT_BUS_XEN) {
+            virReportError(VIR_ERR_INTERNAL_ERROR,
+                           _("unsupported input bus %s"),
+                           bus);
+            return -1;
+        }
+        if (input->type != VIR_DOMAIN_INPUT_TYPE_MOUSE &&
+            input->type != VIR_DOMAIN_INPUT_TYPE_KBD) {
+            virReportError(VIR_ERR_INTERNAL_ERROR,
+                           _("xen bus does not support %s input device"),
+                           type);
+            return -1;
+        }
+    } else {
+        if (def->virtType == VIR_DOMAIN_VIRT_VZ ||
+            def->virtType == VIR_DOMAIN_VIRT_PARALLELS) {
+            if (input->bus != VIR_DOMAIN_INPUT_BUS_PARALLELS) {
+                virReportError(VIR_ERR_INTERNAL_ERROR,
+                               _("parallels containers don't support "
+                                 "input bus %s"),
+                               bus);
+                return -1;
+            }
+
+            if (input->type != VIR_DOMAIN_INPUT_TYPE_MOUSE &&
+                input->type != VIR_DOMAIN_INPUT_TYPE_KBD) {
+                virReportError(VIR_ERR_INTERNAL_ERROR,
+                               _("parallels bus does not support "
+                                 "%s input device"),
+                               type);
+                return -1;
+            }
+        } else {
+            virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                           _("Input devices are not supported by this "
+                             "virtualization driver."));
+            return -1;
+        }
+    }
+
+    if (input->bus == VIR_DOMAIN_INPUT_BUS_USB &&
+        input->info.type != VIR_DOMAIN_DEVICE_ADDRESS_TYPE_NONE &&
+        input->info.type != VIR_DOMAIN_DEVICE_ADDRESS_TYPE_USB) {
+        virReportError(VIR_ERR_XML_ERROR, "%s",
+                       _("Invalid address for an USB device"));
+        return -1;
+    }
+
+    return 0;
+}
+
+
+static int
 virDomainDeviceDefPostParseCommon(virDomainDeviceDefPtr dev,
                                   const virDomainDef *def,
                                   virCapsPtr caps G_GNUC_UNUSED,
@@ -5249,6 +5325,9 @@ virDomainDeviceDefPostParseCommon(virDomainDeviceDefPtr dev,
     case VIR_DOMAIN_DEVICE_LEASE:
     case VIR_DOMAIN_DEVICE_FS:
     case VIR_DOMAIN_DEVICE_INPUT:
+        ret = virDomainInputDefPostParse(dev->data.input, def);
+        break;
+
     case VIR_DOMAIN_DEVICE_SOUND:
     case VIR_DOMAIN_DEVICE_WATCHDOG:
     case VIR_DOMAIN_DEVICE_GRAPHICS:
@@ -6427,6 +6506,12 @@ virDomainInputDefValidate(const virDomainInputDef *input)
             break;
 
         case VIR_DOMAIN_INPUT_TYPE_PASSTHROUGH:
+            if (!input->source.evdev) {
+                virReportError(VIR_ERR_XML_ERROR, "%s",
+                              _("Missing evdev path for input device "
+                                "passthrough"));
+                return -1;
+            }
             break;
 
         case VIR_DOMAIN_INPUT_TYPE_LAST:
@@ -13301,63 +13386,6 @@ virDomainInputDefParseXML(virDomainXMLOptionPtr xmlopt,
                            _("unknown input bus type '%s'"), bus);
             goto error;
         }
-
-        if (dom->os.type == VIR_DOMAIN_OSTYPE_HVM) {
-            if (def->bus == VIR_DOMAIN_INPUT_BUS_PS2 &&
-                def->type != VIR_DOMAIN_INPUT_TYPE_MOUSE &&
-                def->type != VIR_DOMAIN_INPUT_TYPE_KBD) {
-                virReportError(VIR_ERR_INTERNAL_ERROR,
-                               _("ps2 bus does not support %s input device"),
-                               type);
-                goto error;
-            }
-            if (def->bus == VIR_DOMAIN_INPUT_BUS_XEN) {
-                virReportError(VIR_ERR_INTERNAL_ERROR,
-                               _("unsupported input bus %s"),
-                               bus);
-                goto error;
-            }
-        } else if (dom->os.type == VIR_DOMAIN_OSTYPE_XEN ||
-                   dom->os.type == VIR_DOMAIN_OSTYPE_XENPVH) {
-            if (def->bus != VIR_DOMAIN_INPUT_BUS_XEN) {
-                virReportError(VIR_ERR_INTERNAL_ERROR,
-                               _("unsupported input bus %s"),
-                               bus);
-                goto error;
-            }
-            if (def->type != VIR_DOMAIN_INPUT_TYPE_MOUSE &&
-                def->type != VIR_DOMAIN_INPUT_TYPE_KBD) {
-                virReportError(VIR_ERR_INTERNAL_ERROR,
-                               _("xen bus does not support %s input device"),
-                               type);
-                goto error;
-            }
-        } else {
-            if (dom->virtType == VIR_DOMAIN_VIRT_VZ ||
-                dom->virtType == VIR_DOMAIN_VIRT_PARALLELS) {
-                if (def->bus != VIR_DOMAIN_INPUT_BUS_PARALLELS) {
-                    virReportError(VIR_ERR_INTERNAL_ERROR,
-                                   _("parallels containers don't support "
-                                     "input bus %s"),
-                                   bus);
-                    goto error;
-                }
-
-                if (def->type != VIR_DOMAIN_INPUT_TYPE_MOUSE &&
-                    def->type != VIR_DOMAIN_INPUT_TYPE_KBD) {
-                    virReportError(VIR_ERR_INTERNAL_ERROR,
-                                   _("parallels bus does not support "
-                                     "%s input device"),
-                                   type);
-                    goto error;
-                }
-            } else {
-                virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
-                               _("Input devices are not supported by this "
-                                 "virtualization driver."));
-                goto error;
-            }
-        }
     } else {
         if (dom->os.type == VIR_DOMAIN_OSTYPE_HVM) {
             if ((def->type == VIR_DOMAIN_INPUT_TYPE_MOUSE ||
@@ -13380,21 +13408,8 @@ virDomainInputDefParseXML(virDomainXMLOptionPtr xmlopt,
     if (virDomainDeviceInfoParseXML(xmlopt, node, &def->info, flags) < 0)
         goto error;
 
-    if (def->bus == VIR_DOMAIN_INPUT_BUS_USB &&
-        def->info.type != VIR_DOMAIN_DEVICE_ADDRESS_TYPE_NONE &&
-        def->info.type != VIR_DOMAIN_DEVICE_ADDRESS_TYPE_USB) {
-        virReportError(VIR_ERR_XML_ERROR, "%s",
-                       _("Invalid address for a USB device"));
-        goto error;
-    }
-
     if ((evdev = virXPathString("string(./source/@evdev)", ctxt)))
         def->source.evdev = virFileSanitizePath(evdev);
-    if (def->type == VIR_DOMAIN_INPUT_TYPE_PASSTHROUGH && !def->source.evdev) {
-        virReportError(VIR_ERR_XML_ERROR, "%s",
-                       _("Missing evdev path for input device passthrough"));
-        goto error;
-    }
 
     if (virDomainVirtioOptionsParseXML(virXPathNode("./driver", ctxt),
                                        &def->virtio) < 0)
