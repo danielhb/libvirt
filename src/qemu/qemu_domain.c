@@ -4780,6 +4780,155 @@ qemuDomainDefGetVcpuHotplugGranularity(const virDomainDef *def)
 #define QEMU_MAX_VCPUS_WITHOUT_EIM 255
 
 
+static void
+qemuDomainGetVirtioTransitional(virDomainDeviceDefPtr dev,
+                                bool *hasTransModel,
+                                bool *hasNonTransModel)
+{
+    int model;
+
+    switch (dev->type) {
+        case VIR_DOMAIN_DEVICE_DISK:
+            model = dev->data.disk->model;
+            *hasTransModel = model == VIR_DOMAIN_DISK_MODEL_VIRTIO_TRANSITIONAL;
+            *hasNonTransModel =
+                model == VIR_DOMAIN_DISK_MODEL_VIRTIO_NON_TRANSITIONAL;
+            break;
+
+        case VIR_DOMAIN_DEVICE_NET:
+            model = dev->data.net->model;
+            *hasTransModel = model == VIR_DOMAIN_NET_MODEL_VIRTIO_TRANSITIONAL;
+            *hasNonTransModel =
+                model == VIR_DOMAIN_NET_MODEL_VIRTIO_NON_TRANSITIONAL;
+            break;
+
+        case VIR_DOMAIN_DEVICE_HOSTDEV:
+            if (dev->data.hostdev->source.subsys.type !=
+                VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_HOST)
+                return;
+
+            model = dev->data.hostdev->source.subsys.u.scsi_host.model;
+            *hasTransModel = model == VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_VHOST_MODEL_TYPE_VIRTIO_TRANSITIONAL;
+            *hasNonTransModel = model == VIR_DOMAIN_HOSTDEV_SUBSYS_SCSI_VHOST_MODEL_TYPE_VIRTIO_NON_TRANSITIONAL;
+            break;
+
+        case VIR_DOMAIN_DEVICE_RNG:
+            model = dev->data.rng->model;
+            *hasTransModel = model == VIR_DOMAIN_RNG_MODEL_VIRTIO_TRANSITIONAL;
+            *hasNonTransModel = model == VIR_DOMAIN_RNG_MODEL_VIRTIO_NON_TRANSITIONAL;
+            break;
+
+        case VIR_DOMAIN_DEVICE_FS:
+            model = dev->data.fs->model;
+            *hasTransModel = model == VIR_DOMAIN_FS_MODEL_VIRTIO_TRANSITIONAL;
+            *hasNonTransModel = model == VIR_DOMAIN_FS_MODEL_VIRTIO_NON_TRANSITIONAL;
+            break;
+
+        case VIR_DOMAIN_DEVICE_MEMBALLOON:
+            model = dev->data.memballoon->model;
+            *hasTransModel =
+                model == VIR_DOMAIN_MEMBALLOON_MODEL_VIRTIO_TRANSITIONAL;
+            *hasNonTransModel =
+                model == VIR_DOMAIN_MEMBALLOON_MODEL_VIRTIO_NON_TRANSITIONAL;
+            break;
+
+        case VIR_DOMAIN_DEVICE_VSOCK:
+            model = dev->data.vsock->model;
+            *hasTransModel =
+                model == VIR_DOMAIN_VSOCK_MODEL_VIRTIO_TRANSITIONAL;
+            *hasNonTransModel =
+                model == VIR_DOMAIN_VSOCK_MODEL_VIRTIO_NON_TRANSITIONAL;
+            break;
+
+        case VIR_DOMAIN_DEVICE_INPUT:
+            if (dev->data.input->type != VIR_DOMAIN_INPUT_TYPE_PASSTHROUGH)
+                return;
+
+            model = dev->data.input->model;
+            *hasTransModel =
+                model == VIR_DOMAIN_INPUT_MODEL_VIRTIO_TRANSITIONAL;
+            *hasNonTransModel =
+                model == VIR_DOMAIN_INPUT_MODEL_VIRTIO_NON_TRANSITIONAL;
+            break;
+
+        case VIR_DOMAIN_DEVICE_CONTROLLER:
+            model = dev->data.controller->model;
+
+            if (dev->data.controller->type ==
+                VIR_DOMAIN_CONTROLLER_TYPE_VIRTIO_SERIAL) {
+                *hasTransModel = model == VIR_DOMAIN_CONTROLLER_MODEL_VIRTIO_SERIAL_VIRTIO_TRANSITIONAL;
+                *hasNonTransModel = model == VIR_DOMAIN_CONTROLLER_MODEL_VIRTIO_SERIAL_VIRTIO_NON_TRANSITIONAL;
+            } else if (dev->data.controller->type ==
+                       VIR_DOMAIN_CONTROLLER_TYPE_SCSI) {
+                *hasTransModel = model == VIR_DOMAIN_CONTROLLER_MODEL_SCSI_VIRTIO_TRANSITIONAL;
+                *hasNonTransModel = model == VIR_DOMAIN_CONTROLLER_MODEL_SCSI_VIRTIO_NON_TRANSITIONAL;
+            } else {
+                return;
+            }
+            break;
+
+        case VIR_DOMAIN_DEVICE_LEASE:
+        case VIR_DOMAIN_DEVICE_SOUND:
+        case VIR_DOMAIN_DEVICE_VIDEO:
+        case VIR_DOMAIN_DEVICE_WATCHDOG:
+        case VIR_DOMAIN_DEVICE_GRAPHICS:
+        case VIR_DOMAIN_DEVICE_HUB:
+        case VIR_DOMAIN_DEVICE_REDIRDEV:
+        case VIR_DOMAIN_DEVICE_NONE:
+        case VIR_DOMAIN_DEVICE_SMARTCARD:
+        case VIR_DOMAIN_DEVICE_CHR:
+        case VIR_DOMAIN_DEVICE_NVRAM:
+        case VIR_DOMAIN_DEVICE_SHMEM:
+        case VIR_DOMAIN_DEVICE_TPM:
+        case VIR_DOMAIN_DEVICE_PANIC:
+        case VIR_DOMAIN_DEVICE_MEMORY:
+        case VIR_DOMAIN_DEVICE_IOMMU:
+        case VIR_DOMAIN_DEVICE_LAST:
+        default:
+            return;
+    }
+}
+
+static int
+qemuDomainDefValidateVirtioDev(virQEMUCapsPtr qemuCaps,
+                               virDomainDeviceType devType,
+                               const void *devData)
+{
+    virDomainDeviceDef dev = { .type = devType };
+    virDomainDeviceInfoPtr info;
+    bool hasTransModel = false;
+    bool hasNonTransModel = false;
+
+    virDomainDeviceSetData(&dev, (void *)devData);
+    info = virDomainDeviceGetInfo(&dev);
+    qemuDomainGetVirtioTransitional(&dev, &hasTransModel, &hasNonTransModel);
+
+    if (info->type != VIR_DOMAIN_DEVICE_ADDRESS_TYPE_PCI &&
+        (hasTransModel || hasNonTransModel)) {
+        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                       _("virtio (non-)transitional models are not "
+                         "supported for address type=%s"),
+                       virDomainDeviceAddressTypeToString(info->type));
+        return -1;
+    }
+
+    /* No error if -transitional is not supported: our address
+     * allocation will force the device into plain PCI bus, which
+     * is functionally identical to standard 'virtio-XXX' behavior */
+    if (hasNonTransModel) {
+        if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_VIRTIO_PCI_TRANSITIONAL) &&
+            !virQEMUCapsGet(qemuCaps, QEMU_CAPS_VIRTIO_PCI_DISABLE_LEGACY)) {
+            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                           _("virtio non-transitional model not supported "
+                             "for this qemu"));
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+
 static int
 qemuDomainDefValidatePSeriesFeature(const virDomainDef *def,
                                     virQEMUCapsPtr qemuCaps,
@@ -7269,6 +7418,9 @@ qemuDomainDeviceDefValidateInput(const virDomainInputDef *input,
         return -1;
     }
 
+    if (qemuDomainDefValidateVirtioDev(qemuCaps, VIR_DOMAIN_DEVICE_INPUT, input) < 0)
+        return -1;
+
     switch ((virDomainInputType)input->type) {
     case VIR_DOMAIN_INPUT_TYPE_MOUSE:
         baseName = "virtio-mouse";
@@ -7334,6 +7486,10 @@ qemuDomainDeviceDefValidateMemballoon(const virDomainMemballoonDef *memballoon,
                        _("deflate-on-oom is not supported by this QEMU binary"));
         return -1;
     }
+
+    if (qemuDomainDefValidateVirtioDev(qemuCaps, VIR_DOMAIN_DEVICE_MEMBALLOON,
+                                       memballoon) < 0)
+        return -1;
 
     return 0;
 }
@@ -7460,6 +7616,9 @@ qemuDomainDeviceDefValidateFS(virDomainFSDefPtr fs,
         virReportEnumRangeError(virDomainFSDriverType, fs->fsdriver);
         return -1;
     }
+
+    if (qemuDomainDefValidateVirtioDev(qemuCaps, VIR_DOMAIN_DEVICE_FS, fs) < 0)
+        return -1;
 
     return 0;
 }
