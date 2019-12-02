@@ -5876,6 +5876,8 @@ qemuDomainValidateActualNetDef(const virDomainNetDef *net,
         return -1;
 
     /* QEMU-specific validation */
+    if (qemuDomainDefValidateVirtioDev(qemuCaps, VIR_DOMAIN_DEVICE_NET, net) < 0)
+        return -1;
 
     /* Only tap/macvtap devices support multiqueue. */
     if (net->driver.virtio.queues > 0) {
@@ -5941,7 +5943,8 @@ qemuDomainValidateActualNetDef(const virDomainNetDef *net,
 
 
 static int
-qemuDomainDeviceDefValidateNetwork(const virDomainNetDef *net)
+qemuDomainDeviceDefValidateNetwork(const virDomainNetDef *net,
+                                   virQEMUCapsPtr qemuCaps)
 {
     bool hasIPv4 = false;
     bool hasIPv6 = false;
@@ -6016,6 +6019,9 @@ qemuDomainDeviceDefValidateNetwork(const virDomainNetDef *net)
                            _("tx_queue_size has to be a power of two"));
             return -1;
         }
+
+        if (qemuDomainDefValidateVirtioDev(qemuCaps, VIR_DOMAIN_DEVICE_NET, net) < 0)
+            return -1;
     }
 
     if (net->mtu &&
@@ -7739,7 +7745,7 @@ qemuDomainDeviceDefValidate(const virDomainDeviceDef *dev,
 
     switch ((virDomainDeviceType)dev->type) {
     case VIR_DOMAIN_DEVICE_NET:
-        ret = qemuDomainDeviceDefValidateNetwork(dev->data.net);
+        ret = qemuDomainDeviceDefValidateNetwork(dev->data.net, qemuCaps);
         break;
 
     case VIR_DOMAIN_DEVICE_CHR:
