@@ -1222,6 +1222,11 @@ virDomainEventSuspendedDetailType
 qemuDomainPausedReasonToSuspendedEvent(virDomainPausedReason reason);
 
 int
+qemuDomainDeviceDefValidateController(const virDomainControllerDef *controller,
+                                      const virDomainDef *def,
+                                      virQEMUCapsPtr qemuCaps);
+
+int
 qemuDomainValidateActualNetDef(const virDomainNetDef *net,
                                virQEMUCapsPtr qemuCaps);
 

@@ -6649,7 +6649,8 @@ qemuDomainCheckSCSIControllerIOThreads(const virDomainControllerDef *controller,
 
 static int
 qemuDomainDeviceDefValidateControllerSCSI(const virDomainControllerDef *controller,
-                                          const virDomainDef *def)
+                                          const virDomainDef *def,
+                                          virQEMUCapsPtr qemuCaps)
 {
     switch ((virDomainControllerModelSCSI) controller->model) {
         case VIR_DOMAIN_CONTROLLER_MODEL_SCSI_VIRTIO_SCSI:
@@ -6657,6 +6658,12 @@ qemuDomainDeviceDefValidateControllerSCSI(const virDomainControllerDef *controll
         case VIR_DOMAIN_CONTROLLER_MODEL_SCSI_VIRTIO_NON_TRANSITIONAL:
             if (!qemuDomainCheckSCSIControllerIOThreads(controller, def))
                 return -1;
+
+            if (qemuDomainDefValidateVirtioDev(qemuCaps,
+                                               VIR_DOMAIN_DEVICE_CONTROLLER,
+                                               controller) < 0)
+                return -1;
+
             break;
 
         case VIR_DOMAIN_CONTROLLER_MODEL_SCSI_AUTO:
@@ -7203,7 +7210,7 @@ qemuDomainDeviceDefValidateControllerSATA(const virDomainControllerDef *controll
 }
 
 
-static int
+int
 qemuDomainDeviceDefValidateController(const virDomainControllerDef *controller,
                                       const virDomainDef *def,
                                       virQEMUCapsPtr qemuCaps)
@@ -7227,7 +7234,8 @@ qemuDomainDeviceDefValidateController(const virDomainControllerDef *controller,
         break;
 
     case VIR_DOMAIN_CONTROLLER_TYPE_SCSI:
-        ret = qemuDomainDeviceDefValidateControllerSCSI(controller, def);
+        ret = qemuDomainDeviceDefValidateControllerSCSI(controller, def,
+                                                        qemuCaps);
         break;
 
     case VIR_DOMAIN_CONTROLLER_TYPE_PCI:
@@ -7240,8 +7248,12 @@ qemuDomainDeviceDefValidateController(const virDomainControllerDef *controller,
                                                         qemuCaps);
         break;
 
-    case VIR_DOMAIN_CONTROLLER_TYPE_FDC:
     case VIR_DOMAIN_CONTROLLER_TYPE_VIRTIO_SERIAL:
+        ret = qemuDomainDefValidateVirtioDev(qemuCaps, VIR_DOMAIN_DEVICE_CONTROLLER,
+                                             controller);
+        break;
+
+    case VIR_DOMAIN_CONTROLLER_TYPE_FDC:
     case VIR_DOMAIN_CONTROLLER_TYPE_CCID:
     case VIR_DOMAIN_CONTROLLER_TYPE_USB:
     case VIR_DOMAIN_CONTROLLER_TYPE_XENBUS:
