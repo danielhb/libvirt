@@ -2243,6 +2243,9 @@ qemuDomainAttachRNGDevice(virQEMUDriverPtr driver,
         goto cleanup;
     teardowncgroup = true;
 
+    if (qemuDomainRNGDefValidate(rng, priv->qemuCaps) < 0)
+        goto cleanup;
+
     /* build required metadata */
     if (!(devstr = qemuBuildRNGDevStr(vm->def, rng, priv->qemuCaps)))
         goto cleanup;

@@ -5782,12 +5782,15 @@ qemuDomainSmartcardDefValidate(const virDomainSmartcardDef *def)
 }
 
 
-static int
+int
 qemuDomainRNGDefValidate(const virDomainRNGDef *def,
-                         virQEMUCapsPtr qemuCaps G_GNUC_UNUSED)
+                         virQEMUCapsPtr qemuCaps)
 {
     if (def->backend == VIR_DOMAIN_RNG_BACKEND_EGD &&
         qemuDomainChrSourceDefValidate(def->source.chardev) < 0)
+        return -1;
+
+    if (qemuDomainDefValidateVirtioDev(qemuCaps, VIR_DOMAIN_DEVICE_RNG, def) < 0)
         return -1;
 
     return 0;
