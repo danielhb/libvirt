@@ -1240,6 +1240,11 @@ qemuDomainRNGDefValidate(const virDomainRNGDef *def,
                          virQEMUCapsPtr qemuCaps);
 
 int
+qemuDomainDeviceDefValidateVsock(const virDomainVsockDef *vsock,
+                                 const virDomainDef *def,
+                                 virQEMUCapsPtr qemuCaps);
+
+int
 qemuDomainSupportsCheckpointsBlockjobs(virDomainObjPtr vm)
     G_GNUC_WARN_UNUSED_RESULT;
 

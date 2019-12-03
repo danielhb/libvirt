@@ -7285,7 +7285,7 @@ qemuDomainDeviceDefValidateController(const virDomainControllerDef *controller,
 }
 
 
-static int
+int
 qemuDomainDeviceDefValidateVsock(const virDomainVsockDef *vsock,
                                  const virDomainDef *def,
                                  virQEMUCapsPtr qemuCaps)
@@ -7299,6 +7299,10 @@ qemuDomainDeviceDefValidateVsock(const virDomainVsockDef *vsock,
 
     if (!qemuDomainCheckCCWS390AddressSupport(def, &vsock->info, qemuCaps,
                                               "vsock"))
+        return -1;
+
+    if (qemuDomainDefValidateVirtioDev(qemuCaps, VIR_DOMAIN_DEVICE_VSOCK,
+                                       vsock) < 0)
         return -1;
 
     return 0;

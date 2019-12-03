@@ -3267,6 +3267,9 @@ qemuDomainAttachVsockDevice(virQEMUDriverPtr driver,
 
     fdname = g_strdup_printf("%s%u", fdprefix, vsockPriv->vhostfd);
 
+    if (qemuDomainDeviceDefValidateVsock(vsock, vm->def, priv->qemuCaps) < 0)
+        return -1;
+
     if (!(devstr = qemuBuildVsockDevStr(vm->def, vsock, priv->qemuCaps, fdprefix)))
         goto cleanup;
 
