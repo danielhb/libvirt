@@ -705,6 +705,9 @@ qemuDomainAttachDiskGeneric(virQEMUDriverPtr driver,
             goto cleanup;
     }
 
+    if (qemuDomainDeviceDefValidateDisk(disk, priv->qemuCaps) < 0)
+        goto cleanup;
+
     if (!(devstr = qemuBuildDiskDeviceStr(vm->def, disk, 0, priv->qemuCaps)))
         goto error;
 

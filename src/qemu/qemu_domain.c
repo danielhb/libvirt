@@ -6450,6 +6450,10 @@ qemuDomainDeviceDefValidateDisk(const virDomainDiskDef *disk,
         return -1;
     }
 
+    if (disk->bus == VIR_DOMAIN_DISK_BUS_VIRTIO &&
+        qemuDomainDefValidateVirtioDev(qemuCaps, VIR_DOMAIN_DEVICE_DISK, disk) < 0)
+        return -1;
+
     if (virDiskNameParse(disk->dst, &idx, &partition) < 0) {
         virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
                        _("invalid disk target '%s'"), disk->dst);
