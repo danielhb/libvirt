@@ -6153,7 +6153,7 @@ qemuDomainMdevDefValidate(const virDomainHostdevDef *hostdev,
 }
 
 
-static int
+int
 qemuDomainDeviceDefValidateHostdev(const virDomainHostdevDef *hostdev,
                                    const virDomainDef *def,
                                    virQEMUCapsPtr qemuCaps)
@@ -6174,12 +6174,23 @@ qemuDomainDeviceDefValidateHostdev(const virDomainHostdevDef *hostdev,
         case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI:
             break;
         case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_SCSI_HOST:
+            if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_DEVICE_VHOST_SCSI)) {
+                virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                               _("This QEMU doesn't support vhost-scsi devices"));
+                return -1;
+            }
+
             if (hostdev->info->bootIndex) {
                 virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
                                _("booting from assigned devices is not "
                                  "supported by vhost SCSI devices"));
                 return -1;
             }
+
+            if (qemuDomainDefValidateVirtioDev(qemuCaps, VIR_DOMAIN_DEVICE_HOSTDEV,
+                                               hostdev) < 0)
+                return -1;
+
             break;
         case VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_MDEV:
             return qemuDomainMdevDefValidate(hostdev, def, qemuCaps);

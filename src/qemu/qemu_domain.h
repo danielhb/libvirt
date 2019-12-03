@@ -1231,6 +1231,11 @@ qemuDomainValidateActualNetDef(const virDomainNetDef *net,
                                virQEMUCapsPtr qemuCaps);
 
 int
+qemuDomainDeviceDefValidateHostdev(const virDomainHostdevDef *hostdev,
+                                   const virDomainDef *def,
+                                   virQEMUCapsPtr qemuCaps);
+
+int
 qemuDomainSupportsCheckpointsBlockjobs(virDomainObjPtr vm)
     G_GNUC_WARN_UNUSED_RESULT;
 
