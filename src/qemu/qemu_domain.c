@@ -4780,7 +4780,7 @@ qemuDomainDefGetVcpuHotplugGranularity(const virDomainDef *def)
 #define QEMU_MAX_VCPUS_WITHOUT_EIM 255
 
 
-static void
+void
 qemuDomainGetVirtioTransitional(virDomainDeviceDefPtr dev,
                                 bool *hasTransModel,
                                 bool *hasNonTransModel)

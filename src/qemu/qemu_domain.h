@@ -1253,3 +1253,8 @@ qemuDomainMakeCPUMigratable(virCPUDefPtr cpu);
 
 int
 qemuDomainInitializePflashStorageSource(virDomainObjPtr vm);
+
+void
+qemuDomainGetVirtioTransitional(virDomainDeviceDefPtr dev,
+                                bool *hasTransModel,
+                                bool *hasNonTransModel);
