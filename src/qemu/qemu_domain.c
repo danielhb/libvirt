@@ -4889,6 +4889,89 @@ qemuDomainGetVirtioTransitional(virDomainDeviceDefPtr dev,
     }
 }
 
+
+static int
+qemuDomainDefValidateDevVirtioOpts(virDomainDeviceDefPtr dev,
+                                   virQEMUCapsPtr qemuCaps)
+{
+    virDomainVirtioOptionsPtr virtio;
+
+    switch (dev->type) {
+        case VIR_DOMAIN_DEVICE_DISK:
+            virtio = dev->data.disk->virtio;
+            break;
+
+        case VIR_DOMAIN_DEVICE_NET:
+            virtio = dev->data.net->virtio;
+            break;
+
+        case VIR_DOMAIN_DEVICE_RNG:
+            virtio = dev->data.rng->virtio;
+            break;
+
+        case VIR_DOMAIN_DEVICE_FS:
+            virtio = dev->data.fs->virtio;
+            break;
+
+        case VIR_DOMAIN_DEVICE_MEMBALLOON:
+            virtio = dev->data.memballoon->virtio;
+            break;
+
+        case VIR_DOMAIN_DEVICE_INPUT:
+            virtio = dev->data.input->virtio;
+            break;
+
+        case VIR_DOMAIN_DEVICE_CONTROLLER:
+            virtio = dev->data.controller->virtio;
+            break;
+
+        case VIR_DOMAIN_DEVICE_VIDEO:
+            virtio = dev->data.video->virtio;
+            break;
+
+        case VIR_DOMAIN_DEVICE_HOSTDEV:
+        case VIR_DOMAIN_DEVICE_VSOCK:
+        case VIR_DOMAIN_DEVICE_LEASE:
+        case VIR_DOMAIN_DEVICE_SOUND:
+        case VIR_DOMAIN_DEVICE_WATCHDOG:
+        case VIR_DOMAIN_DEVICE_GRAPHICS:
+        case VIR_DOMAIN_DEVICE_HUB:
+        case VIR_DOMAIN_DEVICE_REDIRDEV:
+        case VIR_DOMAIN_DEVICE_NONE:
+        case VIR_DOMAIN_DEVICE_SMARTCARD:
+        case VIR_DOMAIN_DEVICE_CHR:
+        case VIR_DOMAIN_DEVICE_NVRAM:
+        case VIR_DOMAIN_DEVICE_SHMEM:
+        case VIR_DOMAIN_DEVICE_TPM:
+        case VIR_DOMAIN_DEVICE_PANIC:
+        case VIR_DOMAIN_DEVICE_MEMORY:
+        case VIR_DOMAIN_DEVICE_IOMMU:
+        case VIR_DOMAIN_DEVICE_LAST:
+        default:
+            return 0;
+    }
+
+    if (virtio) {
+        if (virtio->iommu != VIR_TRISTATE_SWITCH_ABSENT &&
+            !virQEMUCapsGet(qemuCaps, QEMU_CAPS_VIRTIO_PCI_IOMMU_PLATFORM)) {
+            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                           _("the iommu setting is not supported "
+                             "with this QEMU binary"));
+            return -1;
+        }
+        if (virtio->ats != VIR_TRISTATE_SWITCH_ABSENT &&
+            !virQEMUCapsGet(qemuCaps, QEMU_CAPS_VIRTIO_PCI_ATS)) {
+            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                           _("the ats setting is not supported with this "
+                             "QEMU binary"));
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+
 static int
 qemuDomainDefValidateVirtioDev(virQEMUCapsPtr qemuCaps,
                                virDomainDeviceType devType,
@@ -4924,6 +5007,9 @@ qemuDomainDefValidateVirtioDev(virQEMUCapsPtr qemuCaps,
             return -1;
         }
     }
+
+    if (qemuDomainDefValidateDevVirtioOpts(&dev, qemuCaps) < 0)
+        return -1;
 
     return 0;
 }
@@ -6300,6 +6386,10 @@ qemuDomainDeviceDefValidateVideo(const virDomainVideoDef *video,
             return -1;
         }
     }
+
+    if (qemuDomainDefValidateVirtioDev(qemuCaps, VIR_DOMAIN_DEVICE_VIDEO,
+                                       video) < 0)
+        return -1;
 
     return 0;
 }
