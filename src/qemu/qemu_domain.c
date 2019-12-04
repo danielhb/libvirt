@@ -5494,7 +5494,8 @@ qemuDomainChrSourceReconnectDefValidate(const virDomainChrSourceReconnectDef *de
 
 
 static int
-qemuDomainChrSourceDefValidate(const virDomainChrSourceDef *def)
+qemuDomainChrSourceDefValidate(const virDomainChrSourceDef *def,
+                               virQEMUCapsPtr qemuCaps)
 {
     switch ((virDomainChrType)def->type) {
     case VIR_DOMAIN_CHR_TYPE_TCP:
@@ -5507,11 +5508,19 @@ qemuDomainChrSourceDefValidate(const virDomainChrSourceDef *def)
             return -1;
         break;
 
+    case VIR_DOMAIN_CHR_TYPE_FILE:
+        if (def->data.file.append != VIR_TRISTATE_SWITCH_ABSENT &&
+            !virQEMUCapsGet(qemuCaps, QEMU_CAPS_CHARDEV_FILE_APPEND)) {
+            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                           _("append not supported in this QEMU binary"));
+            return -1;
+        }
+        break;
+
     case VIR_DOMAIN_CHR_TYPE_NULL:
     case VIR_DOMAIN_CHR_TYPE_VC:
     case VIR_DOMAIN_CHR_TYPE_PTY:
     case VIR_DOMAIN_CHR_TYPE_DEV:
-    case VIR_DOMAIN_CHR_TYPE_FILE:
     case VIR_DOMAIN_CHR_TYPE_PIPE:
     case VIR_DOMAIN_CHR_TYPE_STDIO:
     case VIR_DOMAIN_CHR_TYPE_UDP:
@@ -5520,6 +5529,14 @@ qemuDomainChrSourceDefValidate(const virDomainChrSourceDef *def)
     case VIR_DOMAIN_CHR_TYPE_NMDM:
     case VIR_DOMAIN_CHR_TYPE_LAST:
         break;
+    }
+
+    if (def->logfile) {
+        if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_CHARDEV_LOGFILE)) {
+            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                           _("logfile not supported in this QEMU binary"));
+            return -1;
+        }
     }
 
     return 0;
@@ -5661,9 +5678,10 @@ qemuDomainChrTargetDefValidate(const virDomainChrDef *chr)
 
 static int
 qemuDomainChrDefValidate(const virDomainChrDef *dev,
-                         const virDomainDef *def)
+                         const virDomainDef *def,
+                         virQEMUCapsPtr qemuCaps)
 {
-    if (qemuDomainChrSourceDefValidate(dev->source) < 0)
+    if (qemuDomainChrSourceDefValidate(dev->source, qemuCaps) < 0)
         return -1;
 
     if (qemuDomainChrTargetDefValidate(dev) < 0)
@@ -5719,10 +5737,11 @@ qemuDomainChrDefValidate(const virDomainChrDef *dev,
 
 
 static int
-qemuDomainSmartcardDefValidate(const virDomainSmartcardDef *def)
+qemuDomainSmartcardDefValidate(const virDomainSmartcardDef *def,
+                               virQEMUCapsPtr qemuCaps)
 {
     if (def->type == VIR_DOMAIN_SMARTCARD_TYPE_PASSTHROUGH &&
-        qemuDomainChrSourceDefValidate(def->data.passthru) < 0)
+        qemuDomainChrSourceDefValidate(def->data.passthru, qemuCaps) < 0)
         return -1;
 
     return 0;
@@ -5734,7 +5753,7 @@ qemuDomainRNGDefValidate(const virDomainRNGDef *def,
                          virQEMUCapsPtr qemuCaps G_GNUC_UNUSED)
 {
     if (def->backend == VIR_DOMAIN_RNG_BACKEND_EGD &&
-        qemuDomainChrSourceDefValidate(def->source.chardev) < 0)
+        qemuDomainChrSourceDefValidate(def->source.chardev, qemuCaps) < 0)
         return -1;
 
     return 0;
@@ -5742,9 +5761,10 @@ qemuDomainRNGDefValidate(const virDomainRNGDef *def,
 
 
 static int
-qemuDomainRedirdevDefValidate(const virDomainRedirdevDef *def)
+qemuDomainRedirdevDefValidate(const virDomainRedirdevDef *def,
+                              virQEMUCapsPtr qemuCaps)
 {
-    if (qemuDomainChrSourceDefValidate(def->source) < 0)
+    if (qemuDomainChrSourceDefValidate(def->source, qemuCaps) < 0)
         return -1;
 
     return 0;
@@ -7664,11 +7684,11 @@ qemuDomainDeviceDefValidate(const virDomainDeviceDef *dev,
         break;
 
     case VIR_DOMAIN_DEVICE_CHR:
-        ret = qemuDomainChrDefValidate(dev->data.chr, def);
+        ret = qemuDomainChrDefValidate(dev->data.chr, def, qemuCaps);
         break;
 
     case VIR_DOMAIN_DEVICE_SMARTCARD:
-        ret = qemuDomainSmartcardDefValidate(dev->data.smartcard);
+        ret = qemuDomainSmartcardDefValidate(dev->data.smartcard, qemuCaps);
         break;
 
     case VIR_DOMAIN_DEVICE_RNG:
@@ -7676,7 +7696,7 @@ qemuDomainDeviceDefValidate(const virDomainDeviceDef *dev,
         break;
 
     case VIR_DOMAIN_DEVICE_REDIRDEV:
-        ret = qemuDomainRedirdevDefValidate(dev->data.redirdev);
+        ret = qemuDomainRedirdevDefValidate(dev->data.redirdev, qemuCaps);
         break;
 
     case VIR_DOMAIN_DEVICE_WATCHDOG:
