@@ -547,27 +547,24 @@ verify_xpath_context(xmlXPathContextPtr ctxt)
 
     if (!ctxt) {
         vah_warning(_("Invalid context"));
-        goto error;
+        return -1;
     }
 
     /* check if have <name> */
     if (!(tmp = virXPathString("string(./name[1])", ctxt))) {
         vah_warning(_("Could not find <name>"));
-        goto error;
+        return -1;
     }
     VIR_FREE(tmp);
 
     /* check if have <uuid> */
     if (!(tmp = virXPathString("string(./uuid[1])", ctxt))) {
         vah_warning(_("Could not find <uuid>"));
-        goto error;
+        return -1;
     }
     VIR_FREE(tmp);
 
-    rc = 0;
-
- error:
-    return rc;
+    return 0;
 }
 
 /*
@@ -637,7 +634,7 @@ virDomainDefParserConfig virAAHelperDomainDefParserConfig = {
 static int
 get_definition(vahControl * ctl, const char *xmlStr)
 {
-    int rc = -1, ostype, virtType;
+    int ostype, virtType;
     virCapsGuestPtr guest;  /* this is freed when caps is freed */
 
     /*
@@ -645,22 +642,22 @@ get_definition(vahControl * ctl, const char *xmlStr)
      * but need them for virDomainDefParseString().
      */
     if (caps_mockup(ctl, xmlStr) != 0)
-        goto exit;
+        return -1;
 
     if ((ctl->caps = virCapabilitiesNew(ctl->arch, true, true)) == NULL) {
         vah_error(ctl, 0, _("could not allocate memory"));
-        goto exit;
+        return -1;
     }
 
     if (!(ctl->xmlopt = virDomainXMLOptionNew(&virAAHelperDomainDefParserConfig,
                                               NULL, NULL, NULL, NULL))) {
         vah_error(ctl, 0, _("Failed to create XML config object"));
-        goto exit;
+        return -1;
     }
 
     if ((ostype = virDomainOSTypeFromString(ctl->os)) < 0) {
         vah_error(ctl, 0, _("unknown OS type"));
-        goto exit;
+        return -1;
     }
 
     if ((guest = virCapabilitiesAddGuest(ctl->caps,
@@ -671,12 +668,12 @@ get_definition(vahControl * ctl, const char *xmlStr)
                                          0,
                                          NULL)) == NULL) {
         vah_error(ctl, 0, _("could not allocate memory"));
-        goto exit;
+        return -1;
     }
 
     if ((virtType = virDomainVirtTypeFromString(ctl->virtType)) < 0) {
         vah_error(ctl, 0, _("unknown virtualization type"));
-        goto exit;
+        return -1;
     }
 
     if (virCapabilitiesAddGuestDomain(guest,
@@ -686,7 +683,7 @@ get_definition(vahControl * ctl, const char *xmlStr)
                                       0,
                                       NULL) == NULL) {
         vah_error(ctl, 0, _("could not allocate memory"));
-        goto exit;
+        return -1;
     }
 
     ctl->def = virDomainDefParseString(xmlStr,
@@ -696,23 +693,20 @@ get_definition(vahControl * ctl, const char *xmlStr)
 
     if (ctl->def == NULL) {
         vah_error(ctl, 0, _("could not parse XML"));
-        goto exit;
+        return -1;
     }
 
     if (!ctl->def->name) {
         vah_error(ctl, 0, _("could not find name in XML"));
-        goto exit;
+        return -1;
     }
 
     if (valid_name(ctl->def->name) != 0) {
         vah_error(ctl, 0, _("bad name"));
-        goto exit;
+        return -1;
     }
 
-    rc = 0;
-
- exit:
-    return rc;
+    return 0;
 }
 
 /**
@@ -856,11 +850,10 @@ vah_add_file_chardev(virBufferPtr buf,
     } else {
         /* add the file */
         if (vah_add_file(buf, path, perms) != 0)
-            goto cleanup;
+            return -1;
         rc = 0;
     }
 
- cleanup:
     return rc;
 }
 
