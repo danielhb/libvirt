@@ -3488,6 +3488,7 @@ qemuDomainPCIMultifunctionHostdevEnsurePCIAddresses(virDomainObjPtr vm,
     size_t i;
     qemuDomainObjPrivatePtr priv = vm->privateData;
     virDomainPCIMultifunctionAddressInfoPtr devinfos = NULL;
+    virDomainHostdevDefPtr hostdev;
 
     if (devlist->count > VIR_PCI_MAX_FUNCTIONS) {
         virReportError(VIR_ERR_OPERATION_UNSUPPORTED, "%s",
@@ -3507,14 +3508,19 @@ qemuDomainPCIMultifunctionHostdevEnsurePCIAddresses(virDomainObjPtr vm,
         vm->def->hostdevs[vm->def->nhostdevs++] = devlist->devs[i]->data.hostdev;
 
     for (i = 0; i < devlist->count; i++) {
+        hostdev = devlist->devs[i]->data.hostdev;
+
+        if (hostdev->info->type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_UNASSIGNED)
+            continue;
+
         if (qemuDomainIsPSeries(vm->def)) {
             /* Isolation groups are only relevant for pSeries guests */
             if (qemuDomainFillDeviceIsolationGroup(vm->def, devlist->devs[i]) < 0)
                 return -1;
         }
         qemuDomainSetDeviceSlotAggregateIdx(vm->def, devlist->devs[i]);
-        aggrslotidx = aggrslotidx ? aggrslotidx : devlist->devs[i]->data.hostdev->info->aggregateSlotIdx;
-        if (aggrslotidx != devlist->devs[i]->data.hostdev->info->aggregateSlotIdx) {
+        aggrslotidx = aggrslotidx ? aggrslotidx : hostdev->info->aggregateSlotIdx;
+        if (aggrslotidx != hostdev->info->aggregateSlotIdx) {
             virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
                            _("Devices belong to different PCI slots"));
             return -1;
@@ -3535,6 +3541,11 @@ qemuDomainPCIMultifunctionHostdevEnsurePCIAddresses(virDomainObjPtr vm,
         return -1;
 
     for (i = 0; i < devlist->count; i++) {
+        hostdev = devlist->devs[i]->data.hostdev;
+
+        if (hostdev->info->type == VIR_DOMAIN_DEVICE_ADDRESS_TYPE_UNASSIGNED)
+            continue;
+
          virPCIDeviceAddress addr = devlist->devs[i]->data.hostdev->source.subsys.u.pci.addr;
          devinfos->infos[addr.function] =  devlist->devs[i]->data.hostdev->info;
     }
