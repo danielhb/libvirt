@@ -1389,6 +1389,7 @@ virSetConnectStorage;
 
 # hypervisor/domain_cgroup.h
 virDomainCgroupSetupBlkio;
+virDomainCgroupSetupDomainBlkioParameters;
 virDomainCgroupSetupMemtune;
 
 
