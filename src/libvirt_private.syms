@@ -1396,6 +1396,7 @@ virDomainCgroupSetupMemtune;
 # hypervisor/domain_cgroup.h
 virDomainDriverMergeBlkioDevice;
 virDomainDriverParseBlkioDeviceStr;
+virDomainDriverSetupPersistentDefBlkioParams;
 
 
 # libvirt_internal.h
