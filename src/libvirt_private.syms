@@ -1389,6 +1389,7 @@ virSetConnectStorage;
 
 # hypervisor/domain_cgroup.h
 virDomainCgroupSetupBlkio;
+virDomainCgroupSetupMemtune;
 
 
 # libvirt_internal.h
